@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Aikatsu Card List Enhancer (Full Width + Card Copy + Sticky Filter)
+// @name         Aikatsu Card List Enhancer
 // @namespace    https://www.aikatsu.com/
 // @version      3.3
 // @description  アイカツカードリストに無限スクロールとシンプル表示機能を追加（画面幅最大活用版）+ カード画像クリックでカード名とIDをコピー + スティッキーフィルター
-// @author       Claude
+// @author       megane
 // @match        https://www.aikatsu.com/cardlist/*
 // @match        http://www.aikatsu.com/cardlist/*
 // @grant        GM_setValue
