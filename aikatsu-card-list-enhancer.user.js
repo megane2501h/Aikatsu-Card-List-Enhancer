@@ -246,10 +246,10 @@
         const controlPanel = document.createElement('div');
         controlPanel.id = 'aikatsu-control-panel';
         controlPanel.style.cssText = `
-            position: fixed; top: 5px; right: 5px; z-index: 9999;
-            background: rgba(255, 255, 255, 0.95); padding: 8px;
-            border-radius: 8px; box-shadow: 0 2px 8px rgba(255, 123, 172, 0.3);
-            border: 1px solid #FF7BAC; font-size: 12px; width: 180px;
+            position: fixed; top: 3px; right: 3px; z-index: 9999;
+            background: rgba(255, 255, 255, 0.95); padding: 4px;
+            border-radius: 6px; box-shadow: 0 2px 5px rgba(255, 123, 172, 0.3);
+            border: 1px solid #FF7BAC; font-size: 10px; width: 150px;
             opacity: 0.9; transition: all 0.3s ease;
             font-family: "メイリオ", Meiryo, sans-serif;
         `;
@@ -258,9 +258,9 @@
         togglePanelButton.id = 'toggle-panel';
         togglePanelButton.innerHTML = '▼';
         togglePanelButton.style.cssText = `
-            position: absolute; top: 5px; right: 5px; width: 20px; height: 20px;
+            position: absolute; top: 3px; right: 3px; width: 16px; height: 16px;
             background: #FF7BAC; color: white; border: none; border-radius: 50%;
-            cursor: pointer; padding: 0; line-height: 1; font-size: 9px;
+            cursor: pointer; padding: 0; line-height: 1; font-size: 8px;
             display: flex; align-items: center; justify-content: center;
         `;
 
@@ -270,23 +270,23 @@
 
         const panelTitle = document.createElement('div');
         panelTitle.style.cssText = `
-            font-weight: bold; text-align: center; margin-bottom: 8px;
-            color: #FF5A99; font-size: 13px; padding-bottom: 3px;
+            font-weight: bold; text-align: center; margin-bottom: 4px;
+            color: #FF5A99; font-size: 11px; padding-bottom: 2px;
             border-bottom: 1px solid #FFD1E3;
         `;
         panelTitle.textContent = 'カードビューア設定';
         panelContent.appendChild(panelTitle);
 
         const layoutContainer = document.createElement('div');
-        layoutContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+        layoutContainer.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
 
         const toggleButton = document.createElement('button');
         toggleButton.id = 'toggle-simple-view';
         toggleButton.textContent = 'シンプル表示に切り替え';
         toggleButton.style.cssText = `
-            padding: 6px 8px; cursor: pointer; background: #FF7BAC;
-            color: white; border: none; border-radius: 4px; font-weight: bold;
-            width: 100%; font-size: 12px; transition: background-color 0.2s;
+            padding: 3px 5px; cursor: pointer; background: #FF7BAC;
+            color: white; border: none; border-radius: 3px; font-weight: bold;
+            width: 100%; font-size: 10px; transition: background-color 0.2s;
         `;
         toggleButton.addEventListener('mouseover', () => { toggleButton.style.backgroundColor = '#FF5A99'; });
         toggleButton.addEventListener('mouseout', () => { toggleButton.style.backgroundColor = '#FF7BAC'; });
@@ -295,7 +295,7 @@
         const settingsContainer = document.createElement('div');
         settingsContainer.id = 'settings-container';
         settingsContainer.style.cssText = `
-            display: none; flex-direction: column; gap: 8px; margin-top: 5px;
+            display: none; flex-direction: column; gap: 4px; margin-top: 3px;
         `;
 
         settingsContainer.appendChild(createSizeSlider());
@@ -315,22 +315,22 @@
                 panelContent.style.display = 'block';
                 togglePanelButton.innerHTML = '▼';
                 controlPanel.style.height = 'auto';
-                controlPanel.style.width = '180px';
+                controlPanel.style.width = '150px';
             } else {
                 panelContent.style.display = 'none';
                 togglePanelButton.innerHTML = '▲';
-                controlPanel.style.height = '30px';
-                controlPanel.style.width = '30px';
+                controlPanel.style.height = '22px';
+                controlPanel.style.width = '22px';
             }
         });
     }
 
     function createSizeSlider() {
         const sizeSliderContainer = document.createElement('div');
-        sizeSliderContainer.style.cssText = 'display: flex; flex-direction: column; gap: 3px;';
+        sizeSliderContainer.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
 
         const sliderLabel = document.createElement('div');
-        sliderLabel.style.cssText = 'display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #555;';
+        sliderLabel.style.cssText = 'display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #555;';
         sliderLabel.innerHTML = `
             <span>カードサイズ:</span>
             <span id="size-value" style="font-weight: bold;">${userSettings.cardSize}px</span>
@@ -343,10 +343,10 @@
         sizeSlider.max = '350';
         sizeSlider.step = '10';
         sizeSlider.value = userSettings.cardSize;
-        sizeSlider.style.cssText = 'width: 100%; margin: 2px 0;';
+        sizeSlider.style.cssText = 'width: 100%; margin: 1px 0; height: 12px;';
 
         const sizeRange = document.createElement('div');
-        sizeRange.style.cssText = 'display: flex; justify-content: space-between; font-size: 9px; color: #999; margin-top: -2px;';
+        sizeRange.style.cssText = 'display: flex; justify-content: space-between; font-size: 8px; color: #999; margin-top: -1px;';
         sizeRange.innerHTML = '<span>小</span><span>大</span>';
 
         sizeSliderContainer.appendChild(sliderLabel);
@@ -368,15 +368,15 @@
     function createFullWidthCheckbox() {
         const fullWidthContainer = document.createElement('label');
         fullWidthContainer.style.cssText = `
-            display: flex; align-items: center; font-size: 11px;
-            color: #555; cursor: pointer; margin-top: 3px;
+            display: flex; align-items: center; font-size: 9px;
+            color: #555; cursor: pointer; margin-top: 2px;
         `;
 
         const fullWidthCheckbox = document.createElement('input');
         fullWidthCheckbox.type = 'checkbox';
         fullWidthCheckbox.id = 'full-width-checkbox';
         fullWidthCheckbox.checked = userSettings.fullWidth;
-        fullWidthCheckbox.style.cssText = 'margin-right: 6px;';
+        fullWidthCheckbox.style.cssText = 'margin-right: 3px; transform: scale(0.8);';
 
         fullWidthContainer.appendChild(fullWidthCheckbox);
         fullWidthContainer.appendChild(document.createTextNode('画面幅いっぱいに表示'));
@@ -441,7 +441,7 @@
 
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'filter-buttons-container';
-        buttonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px;';
+        buttonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 2px;';
 
         items.forEach(item => {
             // カード数をカウント
@@ -515,10 +515,10 @@
 
         const filterGroupsContainer = document.createElement('div');
         filterGroupsContainer.className = 'filter-groups-container';
-        filterGroupsContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;';
+        filterGroupsContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px;';
 
-        const filterGroupStyle = 'flex: 1; min-width: 200px;';
-        const filterTitleStyle = 'font-weight: bold; margin-bottom: 5px; color: #FF5A99; font-size: 12px;';
+        const filterGroupStyle = 'flex: 1; min-width: 120px;';
+        const filterTitleStyle = 'font-weight: bold; margin-bottom: 2px; color: #FF5A99; font-size: 10px;';
 
         // タイプフィルター
         filterGroupsContainer.appendChild(createFilterGroup({
@@ -581,20 +581,20 @@
         const filterControls = document.createElement('div');
         filterControls.id = 'detail-filter-controls';
         filterControls.style.cssText = `
-            display: flex; flex-direction: column; margin: 10px auto;
-            width: 700px; padding: 10px; background-color: rgba(255, 255, 255, 0.97);
-            box-sizing: border-box; box-shadow: 0 0 5px rgba(0,0,0,0.1);
-            border-radius: 5px; font-family: "メイリオ", Meiryo, sans-serif;
-            font-size: 12px; position: -webkit-sticky; position: sticky;
+            display: flex; flex-direction: column; margin: 5px auto;
+            width: 600px; padding: 5px; background-color: rgba(255, 255, 255, 0.97);
+            box-sizing: border-box; box-shadow: 0 0 3px rgba(0,0,0,0.1);
+            border-radius: 3px; font-family: "メイリオ", Meiryo, sans-serif;
+            font-size: 10px; position: -webkit-sticky; position: sticky;
             top: 140px; z-index: 1000; border-bottom: 1px solid #FFD1E3;
         `;
 
         const filterGroupsContainer = document.createElement('div');
         filterGroupsContainer.className = 'filter-groups-container';
-        filterGroupsContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;';
+        filterGroupsContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px;';
 
-        const filterGroupStyle = 'flex: 1; min-width: 200px;';
-        const filterTitleStyle = 'font-weight: bold; margin-bottom: 5px; color: #FF5A99; font-size: 12px;';
+        const filterGroupStyle = 'flex: 1; min-width: 120px;';
+        const filterTitleStyle = 'font-weight: bold; margin-bottom: 2px; color: #FF5A99; font-size: 10px;';
 
         // 詳細表示用タイプフィルター
         filterGroupsContainer.appendChild(createFilterGroup({
@@ -660,7 +660,7 @@
 
         const searchGroup = document.createElement('div');
         searchGroup.className = 'search-group';
-        searchGroup.style.cssText = 'display: flex; gap: 10px; margin-top: 5px; align-items: center;';
+        searchGroup.style.cssText = 'display: flex; gap: 5px; margin-top: 3px; align-items: center;';
 
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
@@ -668,8 +668,8 @@
         searchInput.placeholder = 'カード名またはID検索...';
         searchInput.value = searchTerm || '';
         searchInput.style.cssText = `
-            padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;
-            flex-grow: 1; font-size: 12px;
+            padding: 3px 5px; border: 1px solid #ddd; border-radius: 3px;
+            flex-grow: 1; font-size: 9px;
         `;
 
         searchInput.addEventListener('input', () => {
@@ -681,9 +681,9 @@
         clearButton.id = `${prefix}clear-filter`;
         clearButton.textContent = 'クリア';
         clearButton.style.cssText = `
-            padding: 6px 10px; border: none; border-radius: 4px;
+            padding: 3px 5px; border: none; border-radius: 3px;
             background-color: #f0f0f0; cursor: pointer; transition: all 0.2s;
-            font-size: 12px; white-space: nowrap;
+            font-size: 9px; white-space: nowrap;
         `;
         clearButton.addEventListener('click', () => {
             searchInput.value = '';
@@ -709,7 +709,7 @@
 
         const cardCount = document.createElement('div');
         cardCount.id = `${prefix}card-count`;
-        cardCount.style.cssText = 'margin-left: auto; font-size: 12px; color: #666; font-weight: bold; white-space: nowrap;';
+        cardCount.style.cssText = 'margin-left: auto; font-size: 9px; color: #666; font-weight: bold; white-space: nowrap;';
         cardCount.textContent = `表示: ${isDetailMode ?
             document.querySelectorAll('.card:not([style*="display: none"])').length :
             document.querySelectorAll('.simple-card').length}枚`;
@@ -849,17 +849,19 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                min-width: 100px;
+                min-width: 70px;
+                padding: 2px 4px;
+                font-size: 9px;
             }
             .multi-filter-button::after {
                 content: attr(data-count);
                 display: inline-block;
                 background-color: rgba(0, 0, 0, 0.1);
-                border-radius: 10px;
-                padding: 1px 5px;
-                margin-left: 5px;
-                font-size: 10px;
-                min-width: 15px;
+                border-radius: 8px;
+                padding: 0px 3px;
+                margin-left: 3px;
+                font-size: 8px;
+                min-width: 12px;
                 text-align: center;
             }
             .multi-filter-button.active::after {
@@ -871,18 +873,18 @@
         styleElement.textContent += `
             #filter-controls {
                 display: flex !important; flex-direction: column !important;
-                margin: 10px auto !important; width: 100% !important; padding: 10px !important;
+                margin: 5px auto !important; width: 100% !important; padding: 5px !important;
                 background-color: rgba(255, 255, 255, 0.97) !important;
                 box-sizing: border-box !important; box-shadow: 0 0 5px rgba(0,0,0,0.1) !important;
-                border-radius: 5px !important; font-family: "メイリオ", Meiryo, sans-serif !important;
-                font-size: 12px !important; position: -webkit-sticky !important;
+                border-radius: 4px !important; font-family: "メイリオ", Meiryo, sans-serif !important;
+                font-size: 10px !important; position: -webkit-sticky !important;
                 position: sticky !important; top: 140px !important; z-index: 1000 !important;
                 border-bottom: 1px solid #FFD1E3 !important;
             }
             .multi-filter-button {
-                padding: 4px 8px; border: none; border-radius: 4px;
+                padding: 2px 4px; border: none; border-radius: 3px;
                 background-color: #f0f0f0; cursor: pointer; transition: all 0.2s;
-                font-size: 11px; font-weight: bold; margin: 2px;
+                font-size: 9px; font-weight: bold; margin: 1px;
             }
             .multi-filter-button:hover { background-color: #e0e0e0; }
             .multi-filter-button.active { background-color: #FF7BAC; color: white; }
@@ -1306,9 +1308,9 @@
             .td-cardimg img { cursor: pointer; }
             #detail-filter-controls .multi-filter-button {
                 display: flex; justify-content: space-between; align-items: center;
-                padding: 4px 8px; border: none; border-radius: 4px;
+                padding: 2px 4px; border: none; border-radius: 3px;
                 background-color: #f0f0f0; cursor: pointer; transition: all 0.2s;
-                font-size: 11px; font-weight: bold; margin: 2px; min-width: 100px;
+                font-size: 9px; font-weight: bold; margin: 1px; min-width: 70px;
             }
             #detail-filter-controls .multi-filter-button:hover { background-color: #e0e0e0; }
             #detail-filter-controls .multi-filter-button.active { background-color: #FF7BAC; color: white; }
@@ -1316,11 +1318,11 @@
                 content: attr(data-count);
                 display: inline-block;
                 background-color: rgba(0, 0, 0, 0.1);
-                border-radius: 10px;
-                padding: 1px 5px;
-                margin-left: 5px;
-                font-size: 10px;
-                min-width: 15px;
+                border-radius: 8px;
+                padding: 0px 3px;
+                margin-left: 3px;
+                font-size: 8px;
+                min-width: 12px;
                 text-align: center;
             }
             #detail-filter-controls .multi-filter-button.active::after {
