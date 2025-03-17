@@ -11,7 +11,7 @@
 - 検索結果をページネーションなしで全表示
 - カード画像をクリックするとカード名とIDをコピー
 - フィルターをスティッキー表示で常に操作可能
-- 画面幅を最大限に活用するフルワイドモード
+- 画面幅を最大限に活用するフルワイド表示
 - サーバーに負荷をかけずに全てローカルで処理
 
 ## インストール方法
@@ -20,7 +20,7 @@
    - [Tampermonkey (Chrome)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
    - [Tampermonkey (Firefox)](https://addons.mozilla.org/ja/firefox/addon/tampermonkey/)
 
-2. 以下のいずれかの方法でスクリプトをインストールします：
+2. スクリプトをインストールします：
    - このリポジトリの`aikatsu-card-list-enhancer.user.js`ファイルを開き、「Raw」ボタンをクリックします。
    - ユーザースクリプトマネージャが自動的にインストール画面を表示します。
 
