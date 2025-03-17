@@ -17,14 +17,14 @@
 ## インストール方法
 
 1. ブラウザに拡張機能「Tampermonkey」または「Violentmonkey」などのユーザースクリプトマネージャをインストールします。
-   - [Tampermonkey (Chrome)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
+   - [Tampermonkey (Chrome・Edge)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
    - [Tampermonkey (Firefox)](https://addons.mozilla.org/ja/firefox/addon/tampermonkey/)
 
 2. スクリプトをインストールします：
    - このリポジトリの`aikatsu-card-list-enhancer.user.js`ファイルを開き、「Raw」ボタンをクリックします。
    - ユーザースクリプトマネージャが自動的にインストール画面を表示します。
 
-3. インストール後、アイカツカードリスト（https://www.aikatsu.com/cardlist/）にアクセスすると自動的に機能が有効になります。
+3. インストール後、[アイカツ！公式](https://www.aikatsu.com/cardlist/) にアクセスすると自動的に機能が有効になります。
 
 ### シンプル表示/詳細表示の切り替え
 - 画面右上のコントロールパネルにある「シンプル表示に切り替え」ボタンをクリックすると、カードの表示形式を切り替えられます。
