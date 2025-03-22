@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Aikatsu Card List Enhancer
 // @namespace    https://www.aikatsu.com/
-// @version      5.7
-// @description  アイカツカードリストに無限スクロール・シンプル表示機能・所持カード管理機能を追加します。
+// @version      6.2
+// @description  Enhanced features for Aikatsu card list: infinite scroll, simple view, ownership management
 // @author       megane
 // @match        https://www.aikatsu.com/cardlist/*
 // @match        http://www.aikatsu.com/cardlist/*
@@ -29,7 +29,27 @@
         searchTerm: ''
     };
 
-    // Card data extraction utilities
+    // Category card counts
+    const CATEGORY_CARD_COUNTS = {
+        "215022": 64, "215021": 65, "215020": 73, "215019": 76,
+        "215018": 80, "215017": 74, "215016": 68, "215015": 74,
+        "215014": 77, "215013": 73, "215012": 74, "215011": 64,
+        "215010": 68, "215009": 64, "215008": 64, "215007": 64,
+        "215006": 63, "215005": 62, "215004": 64, "215003": 59,
+        "215002": 64, "215001": 52, "215901": 2046
+    };
+
+    // Utility functions
+    const getCurrentCategory = () => {
+        const activeBtn = document.querySelector('.snbtn-sct a');
+        if (activeBtn) {
+            const match = activeBtn.href.match(/category=(\d+)/);
+            if (match) return match[1];
+        }
+        return new URLSearchParams(window.location.search).get('category') || "215022";
+    };
+
+    // Card data extraction
     const extractCardId = card => card.querySelector('th')?.textContent.trim().split('<')[0].trim();
     const extractCardImagePath = card => card.querySelector('.td-cardimg img')?.getAttribute('src');
     const extractCardName = card => {
@@ -81,7 +101,6 @@
         const rarityMap = {'ノーマル':'normal', 'レア':'rare', 'プレミアムレア':'premium', 'キャンペーンレア':'campaign'};
         const isAccessory = card.querySelector('table.card-accessory') !== null;
 
-        // Method 1: Check headers
         for (const header of card.querySelectorAll('.tit-cute, .tit-cool, .tit-sexy, .tit-pop, .tit-accessory')) {
             if (header.textContent.trim() === 'レアリティ') {
                 const row = header.closest('tr');
@@ -97,11 +116,11 @@
             }
         }
 
-        // Method 2: Scan all rows for rarity information
+        // Fallback search through all cells
         const rows = card.querySelectorAll('tr');
         for (let i = 0; i < rows.length; i++) {
             const cells = rows[i].querySelectorAll('td');
-            const isRarityRow = Array.from(cells).some(cell =>
+            const isRarityRow = Array.from(cells).some(cell => 
                 cell.textContent.trim() === 'レアリティ' ||
                 (cell.classList.contains('tit-accessory') && cell.textContent.trim() === 'レアリティ'));
 
@@ -124,28 +143,43 @@
 
     // UI Helper Functions
     const updateFilterState = () => {
-        const filterTypes = {
-            'type': savedFilterState.activeTypeFilters = [],
-            'category': savedFilterState.activeCategoryFilters = [],
-            'rarity': savedFilterState.activeRarityFilters = []
-        };
+        savedFilterState.activeTypeFilters = [];
+        savedFilterState.activeCategoryFilters = [];
+        savedFilterState.activeRarityFilters = [];
 
         document.querySelectorAll('.filter-btn.active').forEach(btn => {
             const type = btn.dataset.filterType;
             const filter = btn.dataset.filter;
-            if (filterTypes[type] && filter) filterTypes[type].push(filter);
+            if (type === 'type') savedFilterState.activeTypeFilters.push(filter);
+            else if (type === 'category') savedFilterState.activeCategoryFilters.push(filter);
+            else if (type === 'rarity') savedFilterState.activeRarityFilters.push(filter);
         });
     };
 
-    const updateFilterCounts = () => {
-        const isDetailView = !isSimpleView;
-        const countByType = {}, countByCategory = {}, countByRarity = {};
+    const ensureCardsVisible = () => {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            if (window.getComputedStyle(card).display === 'none') {
+                card.style.display = '';
+            }
+        });
+        return cards.length;
+    };
 
-        // Count displayed cards by type, category, and rarity
-        const cards = document.querySelectorAll(isSimpleView ? '.simple-card:not(.hidden-card)' : '.card[style=""]');
+    const initializeFilterCounts = () => {
+        const visibleCount = ensureCardsVisible();
+        updateCardCount(visibleCount);
+        updateFilterCounts();
+        updateCollectionStats();
+        return visibleCount;
+    };
+
+    const updateFilterCounts = () => {
+        const countByType = {}, countByCategory = {}, countByRarity = {};
+        const cards = document.querySelectorAll(isSimpleView ? '.simple-card:not(.hidden-card)' : '.card');
 
         cards.forEach(card => {
-            if (isDetailView && card.style.display === 'none') return;
+            if (!isSimpleView && (card.style.display === 'none' || window.getComputedStyle(card).display === 'none')) return;
 
             let type, category, rarity;
 
@@ -171,8 +205,8 @@
 
             const type = btn.dataset.filterType;
             const filter = btn.dataset.filter;
-
             let count = 0;
+
             if (type === 'type') count = countByType[filter] || 0;
             else if (type === 'category') count = countByCategory[filter] || 0;
             else if (type === 'rarity') count = countByRarity[filter] || 0;
@@ -189,21 +223,14 @@
             btn.classList.remove('active');
             btn.style.backgroundColor = '#f8f8f8';
             btn.style.color = '#333';
-
-            const counter = btn.querySelector('.filter-count');
-            if (counter) counter.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            btn.querySelector('.filter-count')?.style.setProperty('background-color', 'rgba(0,0,0,0.1)');
         });
 
         document.querySelectorAll('.ownership-filter-btn').forEach(btn => {
-            if (btn.dataset.filter === 'all') {
-                btn.classList.add('active');
-                btn.style.backgroundColor = '#aaa';
-                btn.style.color = 'white';
-            } else {
-                btn.classList.remove('active');
-                btn.style.backgroundColor = '#f5f5f5';
-                btn.style.color = '#333';
-            }
+            const isAll = btn.dataset.filter === 'all';
+            btn.classList.toggle('active', isAll);
+            btn.style.backgroundColor = isAll ? '#aaa' : '#f5f5f5';
+            btn.style.color = isAll ? 'white' : '#333';
         });
 
         savedFilterState.activeTypeFilters = [];
@@ -219,17 +246,81 @@
         if (el) el.textContent = `表示: ${count}枚`;
     };
 
+    // Collection stats functions
+    const calculateOwnershipStats = () => {
+        const currentCategory = getCurrentCategory();
+        const totalInCategory = CATEGORY_CARD_COUNTS[currentCategory] || 0;
+        
+        let ownedInCurrentCategory = 0;
+        document.querySelectorAll('.card').forEach(card => {
+            const img = card.querySelector('.td-cardimg img');
+            if (img && userSettings.ownedCards[img.getAttribute('src')]?.owned) {
+                ownedInCurrentCategory++;
+            }
+        });
+
+        const displayedCards = isSimpleView
+            ? document.querySelectorAll('.simple-card:not(.hidden-card)').length
+            : document.querySelectorAll('.card[style=""]').length || document.querySelectorAll('.card').length;
+
+        return {
+            displayedCards,
+            ownedInCurrentCategory,
+            totalInCategory,
+            totalOwned: Object.keys(userSettings.ownedCards).length
+        };
+    };
+
     const updateCollectionStats = () => {
         const collectionStats = document.getElementById('collection-stats');
         if (!collectionStats) return;
 
-        const displayedCards = document.querySelectorAll('.card').length;
-        const ownedCount = Object.keys(userSettings.ownedCards).length;
-
-        collectionStats.innerHTML = `コレクション状況<br>表示：${displayedCards}枚<br>所持： ${ownedCount}枚`;
+        const stats = calculateOwnershipStats();
+        collectionStats.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                <span style="font-size:10px;color:#666;">コレクション</span>
+                <span style="font-size:11px;color:#333;">${stats.displayedCards}枚表示中 / ${stats.ownedInCurrentCategory}枚所持</span>
+                <span style="font-size:11px;color:#666;">総所持${stats.totalOwned}枚</span>
+            </div>`;
     };
 
-    // Notification and clipboard functions
+    // Add card count to navigation items
+    const enhanceCardListNavigation = () => {
+        const navItems = document.querySelectorAll('#sn-cardlist li');
+        if (!navItems.length || document.querySelector('#sn-cardlist .card-count-badge')) return;
+
+        navItems.forEach(item => {
+            const link = item.querySelector('a');
+            if (!link) return;
+
+            const match = link.href.match(/category=(\d+)/);
+            if (!match || !match[1]) return;
+
+            const categoryId = match[1];
+            const cardCount = CATEGORY_CARD_COUNTS[categoryId] || 0;
+
+            const badge = document.createElement('div');
+            badge.className = 'card-count-badge';
+            badge.textContent = `${cardCount}枚`;
+            badge.style.cssText = 'position:absolute;bottom:5px;right:5px;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:1px 4px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.2);z-index:2;';
+
+            item.querySelector('.card-count-badge')?.remove();
+            item.style.position = 'relative';
+            item.appendChild(badge);
+        });
+
+        if (!document.getElementById('nav-badge-styles')) {
+            const style = document.createElement('style');
+            style.id = 'nav-badge-styles';
+            style.textContent = `
+                #sn-cardlist li:hover .card-count-badge { background: rgba(255,105,156,0.8) !important; }
+                .snbtn-sct .card-count-badge { background: rgba(255,105,156,0.8) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+    };
+
+    // Clipboard functions
     const copyTextToClipboard = text => {
         const textArea = document.createElement('textarea');
         textArea.style.position = 'fixed';
@@ -243,9 +334,7 @@
     };
 
     const showCopyNotification = text => {
-        const existingNotification = document.getElementById('copy-notification');
-        if (existingNotification) document.body.removeChild(existingNotification);
-
+        document.getElementById('copy-notification')?.remove();
         document.body.insertAdjacentHTML('beforeend', `<div id="copy-notification">テキスト「${text}」をコピーしました！</div>`);
         setTimeout(() => {
             document.getElementById('copy-notification').style.opacity = '0';
@@ -255,7 +344,10 @@
 
     // Card ownership management
     const toggleCardOwnership = (imagePath, container, button) => {
-        const isCurrentlyOwned = userSettings.ownedCards[imagePath];
+        const cardId = container.closest('.card')?.querySelector('th')?.textContent.trim().split('<')[0].trim() || '不明なID';
+        const cardName = extractCardName(container.closest('.card')) || '不明なカード';
+        // Fix: Strict equality check for ownership status
+        const isCurrentlyOwned = userSettings.ownedCards[imagePath]?.owned === true;
         const img = container.querySelector('img');
 
         if (isCurrentlyOwned) {
@@ -269,7 +361,11 @@
                 button.classList.remove('owned');
             }
         } else {
-            userSettings.ownedCards[imagePath] = true;
+            userSettings.ownedCards[imagePath] = {
+                owned: true,
+                cardId: cardId,
+                cardName: cardName
+            };
             container.classList.remove('not-owned-card');
             container.classList.add('owned-card');
             if (img) img.title = 'クリックで未所持に変更';
@@ -290,34 +386,23 @@
     };
 
     const updateOwnedStatusForImage = imagePath => {
-        const isOwned = userSettings.ownedCards[imagePath];
+        // Fix: Strict equality check for ownership status
+        const isOwned = userSettings.ownedCards[imagePath]?.owned === true;
 
         // Update detail view cards
         document.querySelectorAll('.card').forEach(card => {
             const img = card.querySelector('.td-cardimg img');
             if (img && img.getAttribute('src') === imagePath) {
                 const tdCardimg = card.querySelector('.td-cardimg');
-                const toggleButton = tdCardimg.querySelector('#toggle-ownership');
-
+                // Fix: Use explicit add/remove instead of toggle
                 if (isOwned) {
-                    tdCardimg.classList.remove('not-owned-card');
                     tdCardimg.classList.add('owned-card');
-                    img.title = 'クリックで未所持に変更';
-                    if (toggleButton) {
-                        toggleButton.innerHTML = '✓';
-                        toggleButton.title = 'クリックで未所持に変更';
-                        toggleButton.classList.add('owned');
-                    }
+                    tdCardimg.classList.remove('not-owned-card');
                 } else {
                     tdCardimg.classList.remove('owned-card');
                     tdCardimg.classList.add('not-owned-card');
-                    img.title = 'クリックで所持済みに変更';
-                    if (toggleButton) {
-                        toggleButton.innerHTML = '○';
-                        toggleButton.title = 'クリックで所持済みに変更';
-                        toggleButton.classList.remove('owned');
-                    }
                 }
+                img.title = isOwned ? 'クリックで未所持に変更' : 'クリックで所持済みに変更';
             }
         });
 
@@ -325,19 +410,25 @@
         document.querySelectorAll('.simple-card').forEach(card => {
             const img = card.querySelector('img');
             if (img && img.getAttribute('src') === imagePath) {
-                const ownedIcon = card.querySelector('.owned-icon');
-
+                // Fix: Explicit style management
                 if (isOwned) {
                     card.classList.add('owned-card');
-                    if (!ownedIcon) {
-                        const icon = document.createElement('div');
-                        icon.className = 'owned-icon';
-                        icon.textContent = '✓';
-                        card.appendChild(icon);
-                    }
+                    // Reset border style explicitly
+                    card.style.borderColor = '#5cb85c';
                 } else {
                     card.classList.remove('owned-card');
-                    if (ownedIcon) ownedIcon.remove();
+                    // Reset border style explicitly
+                    card.style.borderColor = '';
+                }
+                
+                let ownedIcon = card.querySelector('.owned-icon');
+                if (isOwned && !ownedIcon) {
+                    ownedIcon = document.createElement('div');
+                    ownedIcon.className = 'owned-icon';
+                    ownedIcon.textContent = '✓';
+                    card.appendChild(ownedIcon);
+                } else if (!isOwned && ownedIcon) {
+                    ownedIcon.remove();
                 }
             }
         });
@@ -349,35 +440,44 @@
             const imgElem = card.querySelector('.td-cardimg img');
             if (imgElem) {
                 const imagePath = imgElem.getAttribute('src');
-                const isOwned = userSettings.ownedCards[imagePath];
+                const isOwned = userSettings.ownedCards[imagePath]?.owned === true;
                 const tdCardimg = card.querySelector('.td-cardimg');
-                const toggleButton = tdCardimg?.querySelector('#toggle-ownership');
-
+                
                 if (tdCardimg) {
-                    tdCardimg.classList.toggle('owned-card', isOwned);
-                    tdCardimg.classList.toggle('not-owned-card', !isOwned);
+                    // Fix: Use explicit add/remove instead of toggle
+                    if (isOwned) {
+                        tdCardimg.classList.add('owned-card');
+                        tdCardimg.classList.remove('not-owned-card');
+                    } else {
+                        tdCardimg.classList.remove('owned-card');
+                        tdCardimg.classList.add('not-owned-card');
+                    }
                     imgElem.title = isOwned ? 'クリックで未所持に変更' : 'クリックで所持済みに変更';
-                }
-
-                if (toggleButton) {
-                    toggleButton.innerHTML = isOwned ? '✓' : '○';
-                    toggleButton.title = isOwned ? 'クリックで未所持に変更' : 'クリックで所持済みに変更';
-                    toggleButton.classList.toggle('owned', isOwned);
                 }
             }
         });
-
+    
         // Update simple view cards
         document.querySelectorAll('.simple-card').forEach(card => {
             const imgElem = card.querySelector('img');
             if (imgElem) {
                 const imagePath = imgElem.getAttribute('src');
-                const isOwned = userSettings.ownedCards[imagePath];
+                const isOwned = userSettings.ownedCards[imagePath]?.owned === true;
                 const ownedIcon = card.querySelector('.owned-icon');
-
-                card.classList.toggle('owned-card', isOwned);
+    
+                // Fix: Explicit style management
+                if (isOwned) {
+                    card.classList.add('owned-card');
+                    card.style.borderColor = '#5cb85c';
+                    imgElem.style.boxShadow = '0 0 0 3px #5cb85c';
+                } else {
+                    card.classList.remove('owned-card');
+                    card.style.borderColor = '';
+                    imgElem.style.boxShadow = '';
+                }
+                
                 imgElem.title = isOwned ? 'クリックで未所持に変更' : 'クリックで所持済みに変更';
-
+    
                 if (isOwned && !ownedIcon) {
                     const icon = document.createElement('div');
                     icon.className = 'owned-icon';
@@ -388,6 +488,15 @@
                 }
             }
         });
+    };
+
+    const updateDisplayAfterImport = () => {
+        // Update card ownership display and status
+        updateAllCardsOwnershipStatus();
+        updateCollectionStats();
+        
+        // Reapply filters
+        isSimpleView ? applyAllFilters() : applyDetailFilters();
     };
 
     // Filter related functions
@@ -421,7 +530,7 @@
                     category: determineCardCategory(card),
                     rarity: extractCardRarity(card),
                     imagePath: imagePath || '',
-                    isOwned: imagePath && userSettings.ownedCards[imagePath]
+                    isOwned: imagePath && userSettings.ownedCards[imagePath]?.owned
                 };
             }
 
@@ -574,7 +683,7 @@
         if (!document.getElementById('simple-view-style')) document.head.appendChild(style);
     };
 
-    // Card view manipulation functions
+    // Card view manipulation
     const createSimpleView = () => {
         document.getElementById('list').style.display = 'none';
         updateSimpleViewStyles();
@@ -618,7 +727,7 @@
         const cardCategory = determineCardCategory(card);
         const cardRarity = extractCardRarity(card);
         const rarityLabel = {normal:'N', rare:'R', premium:'PR', campaign:'CP', none:'-', unknown:'?'}[cardRarity];
-        const isOwned = userSettings.ownedCards[cardImg];
+        const isOwned = userSettings.ownedCards[cardImg]?.owned;
 
         const simpleCard = document.createElement('div');
         simpleCard.className = `simple-card ${cardType}${isOwned ? ' owned-card' : ''}`;
@@ -669,15 +778,31 @@
 
     const toggleSimpleCardOwnership = (card, imagePath) => {
         const isCurrentlyOwned = card.classList.contains('owned-card');
+        const cardId = card.dataset.cardId;
+        const cardName = card.querySelector('.simple-card-name')?.textContent || '不明なカード';
 
         if (isCurrentlyOwned) {
             delete userSettings.ownedCards[imagePath];
             card.classList.remove('owned-card');
+            // Fix: Explicitly reset border and box-shadow styles
+            card.style.borderColor = '';
+            const cardImage = card.querySelector('img');
+            if (cardImage) cardImage.style.boxShadow = '';
+            
             const ownedIcon = card.querySelector('.owned-icon');
             if (ownedIcon) ownedIcon.remove();
         } else {
-            userSettings.ownedCards[imagePath] = true;
+            userSettings.ownedCards[imagePath] = {
+                owned: true,
+                cardId: cardId,
+                cardName: cardName
+            };
             card.classList.add('owned-card');
+            // Fix: Explicitly set border and box-shadow styles
+            card.style.borderColor = '#5cb85c';
+            const cardImage = card.querySelector('img');
+            if (cardImage) cardImage.style.boxShadow = '0 0 0 3px #5cb85c';
+            
             if (!card.querySelector('.owned-icon')) {
                 const icon = document.createElement('div');
                 icon.className = 'owned-icon';
@@ -711,18 +836,11 @@
         }, 300);
     };
 
-    // Enhanced UI components
+    // UI Components
     const createFilterGroup = ({title, items, filterType, columns = 3, width}) => {
         const group = document.createElement('div');
         group.className = `filter-group ${filterType}-filter-group`;
-        group.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            ${width ? `width: ${width}px; max-width: ${width}px;` : 'max-width: 200px;'}
-            padding: 2px 5px;
-            margin: 0 4px;
-        `;
+        group.style.cssText = `display:flex;flex-direction:column;flex:1;${width ? `width:${width}px;max-width:${width}px;` : 'max-width:200px;'}padding:2px 5px;margin:0 4px;`;
 
         // Title header
         const header = document.createElement('div');
@@ -732,12 +850,7 @@
 
         // Button grid container
         const buttonsContainer = document.createElement('div');
-        buttonsContainer.style.cssText = `
-            display: grid;
-            grid-template-columns: repeat(${columns}, 1fr);
-            gap: 4px;
-            flex: 1;
-        `;
+        buttonsContainer.style.cssText = `display:grid;grid-template-columns:repeat(${columns},1fr);gap:4px;flex:1;`;
 
         items.forEach(item => {
             const button = document.createElement('button');
@@ -755,22 +868,11 @@
 
             // Button styling
             button.style.cssText = `
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 1px 3px;
-                font-size: 9px;
-                border: none;
-                background: ${isActive ? item.color : '#f8f8f8'};
-                color: ${isActive ? '#fff' : '#333'};
-                border-left: 2px solid ${item.color};
-                border-radius: 2px;
-                cursor: pointer;
-                transition: all 0.2s;
-                white-space: nowrap;
-                min-height: 16px;
-                box-shadow: ${isActive ? '0 1px 2px rgba(0,0,0,0.2)' : '0 1px 1px rgba(0,0,0,0.1)'};
-            `;
+                display:flex;justify-content:space-between;align-items:center;padding:1px 3px;
+                font-size:9px;border:none;background:${isActive ? item.color : '#f8f8f8'};
+                color:${isActive ? '#fff' : '#333'};border-left:2px solid ${item.color};
+                border-radius:2px;cursor:pointer;transition:all 0.2s;white-space:nowrap;
+                min-height:16px;box-shadow:${isActive ? '0 1px 2px rgba(0,0,0,0.2)' : '0 1px 1px rgba(0,0,0,0.1)'};`;
 
             // Main label
             const label = document.createElement('span');
@@ -789,14 +891,9 @@
             counter.className = 'filter-count';
             counter.textContent = '0';
             counter.style.cssText = `
-                background: ${isActive ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)'};
-                border-radius: 8px;
-                padding: 0 3px;
-                font-size: 9px;
-                min-width: 16px;
-                text-align: center;
-                margin-left: 2px;
-            `;
+                background:${isActive ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)'};
+                border-radius:8px;padding:0 3px;font-size:9px;min-width:16px;
+                text-align:center;margin-left:2px;`;
 
             button.append(label, counter);
 
@@ -853,37 +950,16 @@
         const enhancedUI = document.createElement('div');
         enhancedUI.id = 'aikatsu-enhanced-ui';
         enhancedUI.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 1049px;
-            max-width: 100%;
-            background: linear-gradient(to bottom, rgb(255,160,190), rgb(252,143,181));
-            box-shadow: 0 1px 5px rgba(0,0,0,0.15);
-            z-index: 1000;
-            padding: 5px 8px;
-            display: flex;
-            flex-wrap: nowrap;
-            gap: 8px;
-            align-items: stretch;
-            font-family: "メイリオ", Meiryo, sans-serif;
-            font-size: 12px;
-            height: 120px;
-            overflow: hidden;
-        `;
+            position:absolute;top:0;left:50%;transform:translateX(-50%);width:1049px;
+            max-width:100%;background:linear-gradient(to bottom,rgb(255,160,190),rgb(252,143,181));
+            box-shadow:0 1px 5px rgba(0,0,0,0.15);z-index:1000;padding:5px 8px;display:flex;
+            flex-wrap:nowrap;gap:8px;align-items:stretch;font-family:"メイリオ",Meiryo,sans-serif;
+            font-size:12px;height:120px;overflow:hidden;`;
 
         // Left zone - Logo and basic navigation
         const leftZone = document.createElement('div');
         leftZone.className = 'ui-left-zone';
-        leftZone.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-width: 120px;
-            max-width: 120px;
-            flex: 0 0 auto;
-        `;
+        leftZone.style.cssText = 'display:flex;flex-direction:column;justify-content:space-between;min-width:120px;max-width:120px;flex:0 0 auto;';
 
         const logoLink = header.querySelector('.gnavi_logo');
         if (logoLink) {
@@ -902,13 +978,8 @@
             a.href = i === 0 ? '/cardlist/' : '/goods/';
             a.textContent = text;
             a.style.cssText = `
-                color: white;
-                text-decoration: none;
-                font-weight: ${i === 0 ? 'bold' : 'normal'};
-                font-size: 11px;
-                position: relative;
-                ${i === 0 ? 'border-bottom:2px solid white;padding-bottom:2px;' : ''}
-            `;
+                color:white;text-decoration:none;font-weight:${i === 0 ? 'bold' : 'normal'};
+                font-size:11px;position:relative;${i === 0 ? 'border-bottom:2px solid white;padding-bottom:2px;' : ''}`;
             navLinks.appendChild(a);
         });
 
@@ -917,21 +988,11 @@
         // Ownership zone
         const ownZone = document.createElement('div');
         ownZone.className = 'ui-own-zone';
-        ownZone.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background: rgba(255,255,255,0.5);
-            border-radius: 5px;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 5px;
-            width: 120px;
-            flex: 0 0 auto;
-        `;
+        ownZone.style.cssText = 'display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,0.5);border-radius:5px;border:1px solid rgba(255,255,255,0.3);padding:5px;width:150px;flex:0 0 auto;';
 
         const collectionStats = document.createElement('div');
         collectionStats.id = 'collection-stats';
-        collectionStats.style.cssText = 'font-size:11px;color:#333;text-align:left;font-weight:bold;padding-left:5px;';
+        collectionStats.style.cssText = 'font-size:11px;color:#333;font-weight:bold;padding-left:5px;display:flex;flex-wrap:wrap;gap:8px;line-height:16px;';
         ownZone.appendChild(collectionStats);
 
         const ownershipOptions = document.createElement('div');
@@ -949,16 +1010,10 @@
             button.dataset.filter = option.id;
             button.textContent = option.label;
             button.style.cssText = `
-                padding: 2px 0;
-                font-size: 10px;
-                border: none;
-                background: ${option.id === savedFilterState.activeOwnershipFilter ? option.color : '#f5f5f5'};
-                color: ${option.id === savedFilterState.activeOwnershipFilter ? 'white' : '#333'};
-                border-radius: 12px;
-                cursor: pointer;
-                flex: 1;
-                transition: all 0.2s;
-            `;
+                padding:2px 0;font-size:10px;border:none;
+                background:${option.id === savedFilterState.activeOwnershipFilter ? option.color : '#f5f5f5'};
+                color:${option.id === savedFilterState.activeOwnershipFilter ? 'white' : '#333'};
+                border-radius:12px;cursor:pointer;flex:1;transition:all 0.2s;`;
 
             button.addEventListener('click', function() {
                 document.querySelectorAll('.ownership-filter-btn').forEach(btn => {
@@ -982,22 +1037,22 @@
         ownZone.appendChild(ownershipOptions);
 
         const collectionButtons = document.createElement('div');
-        collectionButtons.style.cssText = 'display:flex;width:100%;gap:3px;';
+        collectionButtons.style.cssText = 'display:flex;width:100%;gap:1px;';
 
-        const btnStyles = 'flex:1;padding:3px 0;font-size:10px;color:white;border:none;border-radius:3px;cursor:pointer;';
+        const btnStyles = 'flex:1;padding:1px 0;font-size:18px;color:white;border:none;border-radius:3px;cursor:pointer;';
 
         const exportButton = document.createElement('button');
-        exportButton.textContent = 'エクスポート';
+        exportButton.innerHTML = '📤';
         exportButton.style.cssText = `${btnStyles}background:#5bc0de;`;
         exportButton.addEventListener('click', exportOwnedCards);
 
         const importButton = document.createElement('button');
-        importButton.textContent = 'インポート';
+        importButton.innerHTML = '📥';
         importButton.style.cssText = `${btnStyles}background:#f0ad4e;`;
         importButton.addEventListener('click', importOwnedCards);
 
         const clearOwnedButton = document.createElement('button');
-        clearOwnedButton.textContent = '全クリア';
+        clearOwnedButton.innerHTML = '🗑️';
         clearOwnedButton.style.cssText = `${btnStyles}background:#d9534f;`;
         clearOwnedButton.addEventListener('click', clearAllOwnedCards);
 
@@ -1007,29 +1062,11 @@
         // Center zone (main filters)
         const centerZone = document.createElement('div');
         centerZone.className = 'ui-center-zone';
-        centerZone.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            flex: 1 1 auto;
-            gap: 2px;
-            padding: 4px;
-            background: rgba(255,255,255,0.6);
-            border-radius: 6px;
-            border: 1px solid rgba(255,255,255,0.3);
-            max-width: 635px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            overflow: hidden;
-        `;
+        centerZone.style.cssText = 'display:flex;flex-direction:column;flex:1 1 auto;gap:2px;padding:4px;background:rgba(255,255,255,0.6);border-radius:6px;border:1px solid rgba(255,255,255,0.3);max-width:635px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;';
 
         // Filter groups container
         const filterContainer = document.createElement('div');
-        filterContainer.style.cssText = `
-            display: flex;
-            justify-content: center;
-            margin-bottom: 2px;
-            width: 100%;
-            padding: 0 2px;
-        `;
+        filterContainer.style.cssText = 'display:flex;justify-content:center;margin-bottom:2px;width:100%;padding:0 2px;';
 
         // Add filter groups
         filterContainer.append(
@@ -1077,29 +1114,13 @@
 
         // Search bar
         const searchBar = document.createElement('div');
-        searchBar.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            margin-top: 1px;
-            height: 20px;
-        `;
+        searchBar.style.cssText = 'display:flex;align-items:center;gap:3px;margin-top:1px;height:20px;';
 
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.id = 'enhanced-search-input';
         searchInput.placeholder = 'カード名またはID検索...';
-        searchInput.style.cssText = `
-            flex: 1;
-            padding: 1px 6px;
-            border: 1px solid #FDA7C1;
-            border-radius: 10px;
-            font-size: 10px;
-            height: 15px;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
-            transition: all 0.2s;
-            min-width: 0;
-        `;
+        searchInput.style.cssText = 'flex:1;padding:1px 6px;border:1px solid #FDA7C1;border-radius:10px;font-size:10px;height:15px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);transition:all 0.2s;min-width:0;';
         searchInput.value = savedFilterState.searchTerm || '';
         searchInput.addEventListener('input', function() {
             savedFilterState.searchTerm = this.value.toLowerCase();
@@ -1114,18 +1135,7 @@
 
         const clearButton = document.createElement('button');
         clearButton.textContent = 'クリア';
-        clearButton.style.cssText = `
-            background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            padding: 0px 4px;
-            font-size: 9px;
-            height: 16px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        `;
+        clearButton.style.cssText = 'background:linear-gradient(to bottom,#f8f8f8,#e8e8e8);border:1px solid #ddd;border-radius:3px;padding:0px 4px;font-size:9px;height:16px;cursor:pointer;white-space:nowrap;transition:all 0.2s;flex-shrink:0;';
         clearButton.addEventListener('click', clearAllFilters);
         clearButton.addEventListener('mouseover', function() {
             this.style.background = 'linear-gradient(to bottom, #ffffff, #f0f0f0)';
@@ -1137,14 +1147,7 @@
         const cardCount = document.createElement('span');
         cardCount.id = 'card-count-display';
         cardCount.textContent = '表示: 0枚';
-        cardCount.style.cssText = `
-            font-size: 9px;
-            color: #666;
-            min-width: 50px;
-            text-align: right;
-            white-space: nowrap;
-            flex-shrink: 0;
-        `;
+        cardCount.style.cssText = 'font-size:9px;color:#666;min-width:50px;text-align:right;white-space:nowrap;flex-shrink:0;';
 
         searchBar.append(searchInput, clearButton, cardCount);
         centerZone.appendChild(searchBar);
@@ -1152,34 +1155,12 @@
         // Right zone
         const rightZone = document.createElement('div');
         rightZone.className = 'ui-right-zone';
-        rightZone.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-items: stretch;
-            padding: 5px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 5px;
-            border: 1px solid rgba(255,255,255,0.3);
-            width: 130px;
-            flex: 0 0 auto;
-        `;
+        rightZone.style.cssText = 'display:flex;flex-direction:column;gap:5px;align-items:stretch;padding:5px;background:rgba(255,255,255,0.5);border-radius:5px;border:1px solid rgba(255,255,255,0.3);width:130px;flex:0 0 auto;';
 
         const viewToggle = document.createElement('button');
         viewToggle.id = 'toggle-view-mode';
         viewToggle.textContent = 'シンプル表示に切替';
-        viewToggle.style.cssText = `
-            width: 100%;
-            padding: 4px 0;
-            background: linear-gradient(to bottom, #FFDAE9, #FF7BAC);
-            border: 1px solid #FF5A99;
-            border-radius: 4px;
-            color: #fff;
-            font-weight: bold;
-            font-size: 11px;
-            cursor: pointer;
-            text-shadow: 0 1px 0 rgba(0,0,0,0.2);
-        `;
+        viewToggle.style.cssText = 'width:100%;padding:4px 0;background:linear-gradient(to bottom,#FFDAE9,#FF7BAC);border:1px solid #FF5A99;border-radius:4px;color:#fff;font-weight:bold;font-size:11px;cursor:pointer;text-shadow:0 1px 0 rgba(0,0,0,0.2);';
         viewToggle.addEventListener('click', toggleSimpleView);
 
         const displaySettings = document.createElement('div');
@@ -1229,6 +1210,8 @@
         if (mgHead) mgHead.style.paddingTop = '140px';
 
         updateCollectionStats();
+        enhanceCardListNavigation();
+
         return enhancedUI;
     };
 
@@ -1236,34 +1219,37 @@
     const exportOwnedCards = () => {
         const ownedCardData = [];
 
-        document.querySelectorAll('.card').forEach(card => {
-            const img = card.querySelector('.td-cardimg img');
-            if (img && userSettings.ownedCards[img.getAttribute('src')]) {
-                const imagePath = img.getAttribute('src');
-                const match = imagePath.match(/\/([^/]+)\.png$/);
-                if (match && match[1]) {
-                    const fileName = match[1];
-                    const cardName = extractCardName(card);
-                    const cardId = extractCardId(card);
+        for (const imagePath in userSettings.ownedCards) {
+            if (!userSettings.ownedCards[imagePath]?.owned) continue;
 
-                    if (fileName && cardName && cardId) {
-                        ownedCardData.push({ fileName, cardName, cardId });
-                    }
-                }
-            }
-        });
+            const match = imagePath.match(/\/([^/]+)\.png$/);
+            if (!match || !match[1]) continue;
+
+            const fileName = match[1];
+            const cardData = userSettings.ownedCards[imagePath];
+
+            ownedCardData.push({
+                fileName,
+                cardName: cardData.cardName || "不明なカード",
+                cardId: cardData.cardId || "不明なID"
+            });
+        }
 
         // Add comments to CSV header
         const commentLines = [
             '# アイカツカードコレクションデータ',
-            '# ※インポート時にはImageFileNameのみが必要です。CardNameとIDは参照用です。',
-            '# ※画像ファイル名での管理について:',
-            '# 　同一IDでも異なる画像が存在する場合があります。例:',
-            '# 　・ID「14 04-CP01」は「サマーデイムーンドレス」のサインなし版(1404-CP01.png)と',
-            '# 　　サインあり版(1404-CP01_81429.png)が存在',
-            '# 　・「クリアガラストップス(PC-086_70802.png)」と「レースソックスつきピンクパンプス',
-            '# 　　(PC-086_70962.png)」は同じID「PC-086」',
-            '# 　そのため、実際に所持しているカードと画像が一致するように、画像ファイル名での管理が最適です。'
+            '# ※インポート時にはImageFileNameのみが必要です。CardNameとIDは参考用のデータです。',
+            '# ※なぜ画像ファイル名での管理するのか:',
+            '# 　同一IDでも異なる画像が存在する場合があります。',
+            '# 例:',
+            '# 　・ID「14 04-CP01」の「サマーデイムーンドレス」は',
+            '# 　　サインなし版(1404-CP01.png)と',
+            '# 　　サインあり版(1404-CP01_81429.png)が存在。',
+            '# 　・ID「PC-086」は',
+            '# 　「クリアガラストップス(PC-086_70802.png)」と',
+            '# 　「レースソックスつきピンクパンプス(PC-086_70962.png)」という種類すら違うカードがある',
+            '# 　そのため、実際に所持しているカードと画像が一致するように、画像ファイル名での管理をこのスクリプトでは採用しています。',
+            '# インポート時には、既存の所持カードの状態はマージされます。'
         ];
 
         // CSV header
@@ -1305,10 +1291,6 @@
         dialog.innerHTML = `
             <h3 style="margin:0 0 10px;font-size:16px;font-weight:bold;color:#555;">所持データインポート</h3>
             <p style="font-size:13px;margin-bottom:5px;color:#666;">カード画像ファイル名のリストまたはCSVをインポートします</p>
-            <p style="font-size:12px;color:#666;margin-bottom:10px;">
-                CSVの場合、最初の列（画像ファイル名）のみが使用されます<br>
-                例: 1604-01.png または単に 1604-01
-            </p>
             <textarea id="import-data-textarea" placeholder="1604-01&#10;1604-02&#10;1604-03"></textarea>
             <p style="font-size:12px;color:#666;margin:5px 0;">または</p>
             <input type="file" id="import-file-input" accept=".csv,.txt" style="margin-bottom:10px;">
@@ -1342,85 +1324,74 @@
 
         dialog.querySelector('.import-btn').addEventListener('click', () => {
             const importData = document.getElementById('import-data-textarea').value.trim();
-            if (!importData) {
-                alert('インポートするデータを入力してください。');
-                return;
-            }
+            if (!importData) return;
 
-            try {
-                // Process CSV or simple list
-                const lines = importData.split(/\r?\n/).filter(line => line.trim() !== '' && !line.startsWith('#'));
-                const cardBaseNames = [];
+            // Process CSV or simple list
+            const lines = importData.split(/\r?\n/);
+            const fileNameData = [];
+            let foundHeader = false;
 
-                lines.forEach(line => {
-                    // For CSV, use only the first column (filename)
-                    const parts = line.split(',');
-                    let fileName = parts[0].trim();
+            // Process each line
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line === '' || line.startsWith('#')) continue;
 
-                    // Remove .png extension if present
-                    if (fileName.endsWith('.png')) {
-                        fileName = fileName.substring(0, fileName.length - 4);
-                    }
-
-                    if (fileName) {
-                        cardBaseNames.push(fileName);
-                    }
-                });
-
-                const imagePaths = {};
-                document.querySelectorAll('.card .td-cardimg img').forEach(img => {
-                    const src = img.getAttribute('src');
-                    if (src) {
-                        const match = src.match(/\/([^/]+)\.png$/);
-                        if (match && match[1]) {
-                            imagePaths[match[1]] = src;
-                        }
-                    }
-                });
-
-                const newOwnedCards = { ...userSettings.ownedCards };
-                let importedCount = 0;
-
-                cardBaseNames.forEach(baseName => {
-                    if (imagePaths[baseName]) {
-                        newOwnedCards[imagePaths[baseName]] = true;
-                        importedCount++;
-                    } else {
-                        // Try partial matching
-                        for (const path in imagePaths) {
-                            if (path.includes(baseName) || baseName.includes(path)) {
-                                newOwnedCards[imagePaths[path]] = true;
-                                importedCount++;
-                                break;
-                            }
-                        }
-                    }
-                });
-
-                userSettings.ownedCards = newOwnedCards;
-                GM_setValue('ownedCards', userSettings.ownedCards);
-
-                updateAllCardsOwnershipStatus();
-                updateCollectionStats();
-
-                if (isSimpleView) {
-                    applyAllFilters();
-                } else {
-                    applyDetailFilters();
+                // Skip header line
+                if (line.toLowerCase().includes('imagefilename') &&
+                    (line.toLowerCase().includes('cardname') || line.toLowerCase().includes('id'))) {
+                    foundHeader = true;
+                    continue;
                 }
 
-                document.body.insertAdjacentHTML('beforeend', `<div id="copy-notification">${importedCount}枚のカードデータを正常にインポートしました！</div>`);
-                setTimeout(() => {
-                    document.getElementById('copy-notification').style.opacity = '0';
-                    setTimeout(() => document.getElementById('copy-notification')?.remove(), 300);
-                }, 2000);
+                // Process line
+                let fileName = '', cardName = '', cardId = '';
+                if (line.includes(',')) {
+                    // CSV format
+                    const columns = line.split(',');
+                    fileName = columns[0].trim();
+                    if (columns.length > 1) cardName = columns[1].trim();
+                    if (columns.length > 2) cardId = columns[2].trim();
+                } else {
+                    // Simple list
+                    fileName = line.trim();
+                }
 
-                overlay.remove();
-                dialog.remove();
-            } catch (e) {
-                alert('データの読み込みに失敗しました。');
-                console.error('Import error:', e);
+                // Remove .png if present
+                if (fileName.toLowerCase().endsWith('.png')) {
+                    fileName = fileName.substring(0, fileName.length - 4);
+                }
+
+                if (fileName) fileNameData.push({ fileName, cardName, cardId });
             }
+
+            // Set ownership for each file
+            const newOwnedCards = { ...userSettings.ownedCards };
+            let importedCount = 0;
+
+            fileNameData.forEach(data => {
+                const { fileName, cardName, cardId } = data;
+                const imagePath = `../images/cardlist/cardimg/${fileName}.png`;
+
+                newOwnedCards[imagePath] = {
+                    owned: true,
+                    cardId: cardId || fileName,
+                    cardName: cardName || fileName
+                };
+                importedCount++;
+            });
+
+            userSettings.ownedCards = newOwnedCards;
+            GM_setValue('ownedCards', userSettings.ownedCards);
+            updateDisplayAfterImport();
+
+            document.body.insertAdjacentHTML('beforeend', `<div id="copy-notification">${importedCount}枚のカードデータを正常にインポートしました！</div>`);
+            setTimeout(() => {
+                document.getElementById('copy-notification').style.opacity = '0';
+                setTimeout(() => document.getElementById('copy-notification')?.remove(), 300);
+            }, 3000);
+
+            overlay.remove();
+            dialog.remove();
         });
     };
 
@@ -1455,11 +1426,8 @@
             updateAllCardsOwnershipStatus();
             updateCollectionStats();
 
-            if (isSimpleView) {
-                applyAllFilters();
-            } else {
-                applyDetailFilters();
-            }
+            if (isSimpleView) applyAllFilters();
+            else applyDetailFilters();
 
             document.body.insertAdjacentHTML('beforeend', `<div id="copy-notification">所持データをすべてクリアしました</div>`);
             setTimeout(() => {
@@ -1518,7 +1486,7 @@
             if (img && tdCardimg) {
                 const imagePath = extractCardImagePath(card);
                 if (imagePath) {
-                    const isOwned = userSettings.ownedCards[imagePath];
+                    const isOwned = userSettings.ownedCards[imagePath]?.owned;
 
                     if (isOwned) {
                         tdCardimg.classList.add('owned-card');
@@ -1556,7 +1524,7 @@
             #simple-view{display:flex;flex-wrap:wrap;justify-content:center;gap:15px;margin:20px auto;width:100%;padding:10px;box-sizing:border-box;background-color:white}
             #end-message{text-align:center;padding:20px;margin:20px auto;font-weight:bold;color:#666;width:100%;border-top:1px dashed #ccc}
             #import-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;max-width:500px;background:white;padding:20px;border-radius:8px;box-shadow:0 0 20px rgba(0,0,0,.3);z-index:10001;font-family:"メイリオ",Meiryo,sans-serif}
-            #import-dialog textarea{width:100%;height:120px;margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:monospace;font-size:12px}
+            #import-dialog textarea{width:95%;height:120px;margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:monospace;font-size:12px}
             #import-dialog .dialog-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:15px}
             #import-dialog .dialog-buttons button{padding:5px 15px;border:none;border-radius:4px;cursor:pointer}
             #import-dialog .cancel-btn{background:#f5f5f5;color:#333}
@@ -1620,7 +1588,7 @@
         </style>`);
     };
 
-    // Pagination and initialization functions
+    // Pagination and initialization
     const disablePagination = () => {
         if (window.jQuery) {
             jQuery.fn.pagination = function() { return this; };
@@ -1648,29 +1616,33 @@
         });
     };
 
-    // Initialize the enhancement
     const init = () => {
         addEnhancedStyles();
         disablePagination();
+
         setTimeout(() => {
             document.querySelectorAll('.card').forEach(card => card.style.display = '');
             trackExistingCards();
             createEnhancedHeader();
             addCopyFunctionToDetailCards();
+
             setTimeout(() => {
-                updateCardCount(document.querySelectorAll('.card').length);
-                updateFilterCounts();
-                updateCollectionStats();
-            }, 500);
+                const visibleCount = initializeFilterCounts();
+                console.log(`Init complete: ${visibleCount} cards displayed`);
+
+                setTimeout(() => updateFilterCounts(), 200);
+            }, 700);
         }, 300);
     };
 
-    // Start the script when elements are ready
+    // Initialization flow
     (function waitForElements() {
         if (document.querySelector('#list') && document.querySelectorAll('.card').length > 0) {
+            console.log(`Card list page detected: ${document.querySelectorAll('.card').length} cards found`);
             init();
+            setTimeout(() => updateFilterCounts(), 2000);
         } else {
             setTimeout(waitForElements, 100);
         }
     })();
-})(); 
+})();
